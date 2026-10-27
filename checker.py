@@ -46,11 +46,17 @@ def check_store(store_id):
     )
 
     data = get_json(url)
-    stores = (
-        data.get("body", {})
-        .get("content", {})
-        .get("pickupMessage", {})
-        .get("stores", [])
+
+print("Top-level response keys:", list(data.keys()))
+print("Response preview:", json.dumps(data, indent=2)[:4000])
+
+stores = (
+    data.get("body", {})
+    .get("content", {})
+    .get("pickupMessage", {})
+    .get("stores", [])
+)
+print("Stores returned:", len(stores))
     )
 
     for store in stores:
