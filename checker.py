@@ -42,48 +42,36 @@ def get_json(url):
 
 def check_store(store_id):
     params = {
+        "pl": "true",
+        "mts.0": "regular",
         "parts.0": PRODUCT,
         "store": store_id,
-        "searchNearby": "false",
     }
+
     url = (
-        "https://www.apple.com/ca/shop/fulfillment-messages?"
+        "https://www.apple.com/ca/shop/retail/pickup-message?"
         + urllib.parse.urlencode(params)
     )
 
     data = get_json(url)
 
-print("Top-level response keys:", list(data.keys()))
-print("Response preview:", json.dumps(data, indent=2)[:4000])
-
-stores = (
-    data.get("body", {})
-    .get("content", {})
-    .get("pickupMessage", {})
-    .get("stores", [])
-)
-print("Stores returned:", len(stores))
-    )
+    stores = data.get("body", {}).get("stores", [])
 
     for store in stores:
         if store.get("storeNumber") != store_id:
             continue
 
         part = store.get("partsAvailability", {}).get(PRODUCT)
+
         if not isinstance(part, dict):
             return "unknown"
 
         display = str(part.get("pickupDisplay", "")).lower()
-        message = str(part.get("pickupSearchQuote", "")).lower()
 
-        # Require an explicit positive availability status.
-        if "available" in display and "unavailable" not in display:
+        if display == "available":
             return "available"
 
-        if "available" in message and "unavailable" not in message:
-            return "available"
-
-        if display or message:
+        if display == "unavailable":
             return "unavailable"
 
     return "unknown"
