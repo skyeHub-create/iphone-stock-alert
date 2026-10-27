@@ -4,6 +4,7 @@ import os
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from curl_cffi import requests as curl_requests
 
 PRODUCT = "MK254VC/A"
 PRODUCT_URL = (
@@ -26,12 +27,17 @@ STATE_FILE = Path("stock-state.json")
 
 
 def get_json(url):
-    request = urllib.request.Request(
+    response = curl_requests.get(
         url,
-        headers={"User-Agent": "Mozilla/5.0"},
+        impersonate="chrome",
+        headers={
+            "Referer": PRODUCT_URL,
+            "Accept": "application/json",
+        },
+        timeout=25,
     )
-    with urllib.request.urlopen(request, timeout=25) as response:
-        return json.loads(response.read().decode("utf-8"))
+    response.raise_for_status()
+    return response.json()
 
 
 def check_store(store_id):
