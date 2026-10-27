@@ -1,0 +1,37 @@
+
+name: Apple Canada stock checker
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  check-stock:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore previous stock state
+        uses: actions/cache@v4
+        with:
+          path: stock-state.json
+          key: stock-state-${{ github.run_id }}
+          restore-keys: |
+            stock-state-
+
+      - name: Check Apple pickup inventory
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python checker.py
