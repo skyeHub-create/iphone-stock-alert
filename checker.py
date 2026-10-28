@@ -74,48 +74,51 @@ def get_json(url):
 
 
 def check_stores():
-    params = {
-        "pl": "true",
-        "parts.0": PRODUCT,
-        "location": POSTAL_CODE,
-    }
-
-    url = ENDPOINT + "?" + urllib.parse.urlencode(params)
-    data = get_json(url)
-
-    try:
-        # The newer pickup-message endpoint returns stores directly under body.
-        stores = data["body"]["stores"]
-    except (KeyError, TypeError):
-        raise RuntimeError(
-            "Apple's response did not contain the expected store data."
-        )
-
-    if not isinstance(stores, list) or not stores:
-        raise RuntimeError("Apple returned no store records.")
-
+    # Query each requested store directly so farther GTA locations aren't
+    # omitted from Apple's limited list of nearby stores.
     found = {}
-    for store in stores:
-        store_id = store.get("storeNumber")
-        if store_id not in STORES:
-            continue
 
-        part = store.get("partsAvailability", {}).get(PRODUCT)
-        if not isinstance(part, dict):
-            continue
-
-        display = str(part.get("pickupDisplay", "")).strip().lower()
-
-        if display == "available":
-            found[store_id] = "available"
-        elif display == "unavailable":
-            found[store_id] = "unavailable"
-        else:
-            found[store_id] = "unknown"
-
-    # Missing stores remain unknown; never assume they're out of stock.
     for store_id in STORES:
-        found.setdefault(store_id, "unknown")
+        params = {
+            "pl": "true",
+            "parts.0": PRODUCT,
+            "store": store_id,
+        }
+        url = ENDPOINT + "?" + urllib.parse.urlencode(params)
+        data = get_json(url)
+
+        try:
+            stores = data["body"]["stores"]
+        except (KeyError, TypeError):
+            raise RuntimeError(
+                f"Apple's response did not contain store data for {store_id}."
+            )
+
+        if not isinstance(stores, list) or not stores:
+            raise RuntimeError(f"Apple returned no store record for {store_id}.")
+
+        matched = False
+        for store in stores:
+            if store.get("storeNumber") != store_id:
+                continue
+
+            part = store.get("partsAvailability", {}).get(PRODUCT)
+            if not isinstance(part, dict):
+                break
+
+            display = str(part.get("pickupDisplay", "")).strip().lower()
+            if display == "available":
+                found[store_id] = "available"
+            elif display == "unavailable":
+                found[store_id] = "unavailable"
+            else:
+                found[store_id] = "unknown"
+            matched = True
+            break
+
+        # Never assume a missing or malformed record means unavailable.
+        if not matched:
+            found[store_id] = "unknown"
 
     return found
 
