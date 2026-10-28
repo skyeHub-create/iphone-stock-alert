@@ -1,4 +1,3 @@
-
 name: Telegram notification test
 
 on:
@@ -11,19 +10,30 @@ jobs:
   send-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Send test message to Android
+      - name: Send test message to configured Telegram chats
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
         run: |
           set -e
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "Telegram secrets are missing."
+            echo "Telegram bot token or primary chat ID secret is missing."
             exit 1
           fi
 
-          curl --fail-with-body --silent --show-error \
-            --request POST \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=Test successful! Your free iPhone stock alert system can reach Telegram."
+          send_message() {
+            local chat_id="$1"
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${chat_id}" \
+              --data-urlencode "text=Test successful! Your free iPhone stock alert system can reach Telegram."
+          }
+
+          send_message "$TELEGRAM_CHAT_ID"
+          if [ -n "$TELEGRAM_CHAT_ID_2" ] && [ "$TELEGRAM_CHAT_ID_2" != "$TELEGRAM_CHAT_ID" ]; then
+            send_message "$TELEGRAM_CHAT_ID_2"
+          else
+            echo "Second chat ID secret not configured; sent only to primary chat."
+          fi
