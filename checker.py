@@ -1,6 +1,7 @@
 
 import json
 import os
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -34,17 +35,57 @@ ENDPOINT = (
 
 
 def get_json(url):
-    response = curl_requests.get(
-        url,
-        impersonate="chrome",
-        headers={
-            "Referer": PRODUCT_URL,
-            "Accept": "application/json",
-        },
-        timeout=25,
+    # Apple occasionally returns transient 5xx/541 responses to automated
+    # requests. Retry a few times before failing safely; never interpret an
+    # unsuccessful response as "out of stock".
+    retryable_statuses = {429, 500, 502, 503, 504, 541}
+    delays = (2, 5, 10)
+    last_error = None
+
+    for attempt in range(len(delays) + 1):
+        try:
+            response = curl_requests.get(
+                url,
+                impersonate="chrome",
+                headers={
+                    "Referer": PRODUCT_URL,
+                    "Accept": "application/json",
+                },
+                timeout=25,
+            )
+
+            if response.status_code in retryable_statuses:
+                last_error = RuntimeError(
+                    f"Apple returned HTTP {response.status_code}"
+                )
+                if attempt < len(delays):
+                    delay = delays[attempt]
+                    print(
+                        f"Apple returned HTTP {response.status_code}; "
+                        f"retrying in {delay}s "
+                        f"({attempt + 1}/{len(delays)} retries)."
+                    )
+                    time.sleep(delay)
+                    continue
+                break
+
+            response.raise_for_status()
+            return response.json()
+
+        except (curl_requests.exceptions.RequestException, ValueError) as exc:
+            last_error = exc
+            if attempt >= len(delays):
+                break
+            delay = delays[attempt]
+            print(
+                f"Apple request failed ({exc}); retrying in {delay}s "
+                f"({attempt + 1}/{len(delays)} retries)."
+            )
+            time.sleep(delay)
+
+    raise RuntimeError(
+        f"Could not retrieve Apple pickup inventory after retries: {last_error}"
     )
-    response.raise_for_status()
-    return response.json()
 
 
 def check_stores():
