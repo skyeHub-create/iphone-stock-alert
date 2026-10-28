@@ -30,7 +30,7 @@ STORES = {
 STATE_FILE = Path("stock-state.json")
 
 ENDPOINT = (
-    "https://www.apple.com/ca/shop/fulfillment-messages"
+    "https://www.apple.com/ca/shop/retail/pickup-message"
 )
 
 
@@ -75,9 +75,7 @@ def get_json(url):
 
 def check_stores():
     params = {
-        "fae": "true",
         "pl": "true",
-        "mts.0": "regular",
         "parts.0": PRODUCT,
         "location": POSTAL_CODE,
     }
@@ -86,7 +84,8 @@ def check_stores():
     data = get_json(url)
 
     try:
-        stores = data["body"]["content"]["pickupMessage"]["stores"]
+        # The newer pickup-message endpoint returns stores directly under body.
+        stores = data["body"]["stores"]
     except (KeyError, TypeError):
         raise RuntimeError(
             "Apple's response did not contain the expected store data."
