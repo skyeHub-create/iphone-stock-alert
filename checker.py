@@ -117,6 +117,23 @@ def send_telegram(message):
         raise RuntimeError("Telegram message failed")
 
 
+def send_test_message():
+    message = (
+        "🧪 iPhone Stock Checker — TEST\n\n"
+        "iPhone Duo 256GB Night Sky\n\n"
+        "Current reported pickup status:\n"
+        "❌ Yorkdale: Unavailable\n"
+        "❌ Eaton Centre: Unavailable\n"
+        "❌ Sherway Gardens: Unavailable\n"
+        "❌ Fairview: Unavailable\n"
+        "❌ Square One: Unavailable\n"
+        "❌ Markville Shopping Centre: Unavailable\n"
+        "❌ Upper Canada Mall: Unavailable\n"
+        "❌ Mapleview Centre: Unavailable\n\n"
+        "Test message only. Check Apple for live status."
+    )
+    send_telegram(message)
+
 def main():
     previous = {}
 
@@ -154,6 +171,6 @@ def main():
     # Save only after the request and any notifications succeed.
     STATE_FILE.write_text(json.dumps(current, indent=2))
 
-
+send_test_message()
 if __name__ == "__main__":
     main()
