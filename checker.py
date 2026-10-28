@@ -35,10 +35,8 @@ ENDPOINT = (
 
 
 def get_json(url):
-    # Apple occasionally returns transient 5xx/541 responses to automated
-    # requests. Retry a few times before failing safely; never interpret an
-    # unsuccessful response as "out of stock".
-    retryable_statuses = {429, 500, 502, 503, 504, 541}
+    # Retry request errors (including HTTP 541) instead of failing on the
+    # first response. A failed Apple request must never be treated as stock data.
     delays = (2, 5, 10)
     last_error = None
 
@@ -53,22 +51,6 @@ def get_json(url):
                 },
                 timeout=25,
             )
-
-            if response.status_code in retryable_statuses:
-                last_error = RuntimeError(
-                    f"Apple returned HTTP {response.status_code}"
-                )
-                if attempt < len(delays):
-                    delay = delays[attempt]
-                    print(
-                        f"Apple returned HTTP {response.status_code}; "
-                        f"retrying in {delay}s "
-                        f"({attempt + 1}/{len(delays)} retries)."
-                    )
-                    time.sleep(delay)
-                    continue
-                break
-
             response.raise_for_status()
             return response.json()
 
@@ -78,13 +60,16 @@ def get_json(url):
                 break
             delay = delays[attempt]
             print(
-                f"Apple request failed ({exc}); retrying in {delay}s "
-                f"({attempt + 1}/{len(delays)} retries)."
+                f"Apple inventory request failed ({exc}); "
+                f"retrying in {delay}s "
+                f"({attempt + 1}/{len(delays)} retries).",
+                flush=True,
             )
             time.sleep(delay)
 
     raise RuntimeError(
-        f"Could not retrieve Apple pickup inventory after retries: {last_error}"
+        f"Apple inventory request failed after {len(delays) + 1} attempts: "
+        f"{last_error}"
     )
 
 
